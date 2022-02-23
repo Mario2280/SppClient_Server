@@ -1,12 +1,23 @@
 {
   "name": "SPP",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
+  "repository": "https://github.com/Mario2280/SppClient_Server.git",
+  "author": "David <david.gulkevich@mail.ru>",
+  "license": "MIT",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "nodemon --legacy-watch src/server.ts",
+    "dev": "nodemon ./src/server.ts",
+    "build": "tsc -p ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "devDependencies": {
+    "@types/node": "^17.0.21",
+    "nodemon": "^2.0.15"
+  },
+  "dependencies": {
+    "fastify": "^3.27.2",
+    "fastify-multer": "^2.0.2",
+    "handlebars": "^4.7.7",
+    "point-of-view": "^5.1.0"
+  }
 }
