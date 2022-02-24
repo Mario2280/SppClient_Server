@@ -1,3 +1,7 @@
+```bash
+yarn install
+```
+
 # SppClient_Server
 http://localhost:8080/ping
 
