@@ -10,7 +10,7 @@ const server = fastify({ logger: true });
 
 const db: Array<Task> = [];
 
-let temp:string;
+let temp: string;
 
 type IdRequest = FastifyRequest<{
     Querystring: {
@@ -89,7 +89,8 @@ server.get('/ping', async (request, reply) => {
     reply.view('main', {
         tasks:
             // [...db]
-            {}
+            [{ name: 'asd', status: 'asd', date: 'asd', id: 'asd' },{ name: 'asd', status: 'asd', date: 'asd'},
+             { name: 'asd', status: 'asd', date: 'asd', id: 'asd' }, { name: 'asd', status: 'asd', date: 'asd', id: 'asd' }, { name: 'asd', status: 'asd', date: 'asd', id: 'asd' }]
     })
 })
 
