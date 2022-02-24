@@ -84,7 +84,7 @@ interface Task {
 
 server.get('/task', (req: IdRequest, reply) => {
     
-    const stream = createReadStream(join(__dirname, '../uploads', req.query.id), 'utf8');
+    const stream = createReadStream(join(__dirname, '../uploads', req.query.id));
     reply.send(stream);
 })
 
