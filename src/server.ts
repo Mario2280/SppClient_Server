@@ -5,7 +5,9 @@ import { join } from 'path';
 import { createReadStream } from 'fs';
 import multer from 'fastify-multer';
 
-const server = fastify({ logger: true });
+const server = fastify({ logger:{
+    prettyPrint:true
+} });
 
 
 const db: Array<Task> = [];
@@ -81,19 +83,24 @@ interface Task {
 
 
 server.get('/task', (req: IdRequest, reply) => {
+    
     const stream = createReadStream(join(__dirname, '../uploads', req.query.id), 'utf8');
     reply.send(stream);
 })
 
 server.get('/ping', async (request, reply) => {
-    reply.view('main', {
-        tasks:
-            // [...db]
-            [{ name: 'a', status: 'w', date: 'q', id: 'e' },
-            { name: 'j', status: 'b', date: 'f', id: 'b' },
-            { name: 'y', status: 'g', date: 'c', id: 'c' },
-            { name: 'n', status: 't', date: '1', id: 'd' }]
-    })
+    try {
+        reply.view('main', {
+            tasks:
+                [...db]
+                // [{ name: 'a', status: 'w', date: 'q', id: 'e' },
+                // { name: 'j', status: 'b', date: 'f', id: 'b' },
+                // { name: 'y', status: 'g', date: 'c', id: 'c' },
+                // { name: 'n', status: 't', date: '1', id: 'd' }]
+        })
+    } catch (error) {
+        reply.send(error);
+    }
 })
 
 server.listen(8080, (err, address) => {
