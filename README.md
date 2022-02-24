@@ -1,6 +1,14 @@
+
+
+
 ```bash
 yarn install
 yarn dev
+```
+
+Если не установлен typescript 
+```bash
+yarn add typescript
 ```
 
 # SppClient_Server
