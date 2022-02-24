@@ -1,33 +1,38 @@
-<div style="margin=30px">
+<div>
     <form action="/task" method="post" enctype="multipart/form-data">
+        
         <label for="name">Name</label>
         <input type="text" name="name" id="name" />
+        
         <label for="status">Status</label>
         <input type="text" name="status" id="status" />
+        
         <label for="date">Date</label>
         <input type="date" name="date" id="date">
+        
         <div class="file-field input-field">
             <div class="btn">
                 <span>File</span>
-                <input type="file" value="image">
+                <input type="file" >
             </div>
             <div class="file-path-wrapper">
                 <input class="file-path validate" type="text">
             </div>
         </div>
-        <button class="btn waves-effect waves-light" type="submit" name="action">Submit
-            <i class="material-icons right"></i>
+        <button class="btn waves-effect waves-light" type="submit" value="file">Submit
+            <i class="material-icons right">send</i>
         </button>
     </form>
 </div>
 
 {{#if tasks.length}}
-<table class="centered">
+<table id="sort" class="sort">
     <thead>
         <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Data</th>
+            <th data-sort-method='thead'>Name</th>
+            <th data-sort-method='thead'>Status</th>
+            <th data-sort-method='date'>Data</th>
+            <th data-sort-method='none'>File</th>
         </tr>
     </thead>
     <tbody>

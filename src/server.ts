@@ -52,7 +52,7 @@ const fileUploaded = function (request: FastifyRequest, reply: FastifyReply) {
 server.route({
     method: "POST",
     url: "/task",
-    preHandler: multer({ storage }).single('image'),
+    preHandler: multer({ storage }).single('file'),
     handler: fileUploaded
 });
 
@@ -89,8 +89,10 @@ server.get('/ping', async (request, reply) => {
     reply.view('main', {
         tasks:
             // [...db]
-            [{ name: 'asd', status: 'asd', date: 'asd', id: 'asd' },{ name: 'asd', status: 'asd', date: 'asd'},
-             { name: 'asd', status: 'asd', date: 'asd', id: 'asd' }, { name: 'asd', status: 'asd', date: 'asd', id: 'asd' }, { name: 'asd', status: 'asd', date: 'asd', id: 'asd' }]
+            [{ name: 'a', status: 'w', date: 'q', id: 'e' },
+            { name: 'j', status: 'b', date: 'f', id: 'b' },
+            { name: 'y', status: 'g', date: 'c', id: 'c' },
+            { name: 'n', status: 't', date: '1', id: 'd' }]
     })
 })
 
