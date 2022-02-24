@@ -88,7 +88,8 @@ server.get('/task', (req: IdRequest, reply) => {
 server.get('/ping', async (request, reply) => {
     reply.view('main', {
         tasks:
-            [...db]
+            // [...db]
+            {}
     })
 })
 
