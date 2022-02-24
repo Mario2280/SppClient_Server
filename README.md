@@ -1,5 +1,6 @@
 ```bash
 yarn install
+yarn dev
 ```
 
 # SppClient_Server
