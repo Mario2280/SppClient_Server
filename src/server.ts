@@ -67,6 +67,7 @@ server.register(pov, {
     includeViewExtension: true,
     root: join(__dirname, "views"),
     options: {
+        
         partials: {
             body: 'partials/body.hbs',
         }
@@ -97,7 +98,7 @@ server.get('/ping', async (request, reply) => {
                 // { name: 'j', status: 'b', date: 'f', id: 'b' },
                 // { name: 'y', status: 'g', date: 'c', id: 'c' },
                 // { name: 'n', status: 't', date: '1', id: 'd' }]
-        })
+        }, {})
     } catch (error) {
         reply.send(error);
     }

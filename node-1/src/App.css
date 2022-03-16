@@ -1,0 +1,63 @@
+* {
+  margin: 0;
+}
+
+body {
+  background-color: wheat;
+}
+
+.table {
+  font-weight: 600;
+  overflow-y: scroll;
+  color: gray;
+  background-color: white;
+  height: 400px;
+}
+
+.table tr {
+  display: flex;
+  justify-content: space-around;
+  
+}
+
+.table td {
+  padding: 0.5rem;
+  border: none;
+  
+}
+
+.table tr:nth-of-type(odd) {
+  background-color: lightgreen;
+}
+
+.add__app > form {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.add__app > form > input {
+  margin: 10px;
+  flex: 1;
+  border-radius: 30px;
+  padding: 10px;
+  border: none;
+  outline-width: 0;
+  background-color: white;
+}
+
+.add__app > form > button {
+  background-color: blue;
+  color: white;
+  border-radius: 30px;
+  padding: 10px;
+  border: none;
+  outline-width: 0;
+}
+
+.app__dropdown {
+  margin-top:10px !important;
+  width: 100vw;
+  background-color: blue;
+  color: white;
+}
