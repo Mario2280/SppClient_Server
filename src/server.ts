@@ -1,11 +1,15 @@
 import fastify, { FastifyRequest, FastifyReply } from 'fastify'
-import pov from 'point-of-view';
-import hbs from 'handlebars';
 import { join } from 'path';
 import { createReadStream, readdirSync } from 'fs';
 import multer from 'fastify-multer';
-
 import { unlink } from 'fs/promises';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import cookie from 'fastify-cookie';
+import { FastifyCookieOptions } from 'fastify-cookie'
+
+const JWT_SECRET = 'secret';
+let token: string;
 
 const server = fastify({
     // logger: {
@@ -13,10 +17,9 @@ const server = fastify({
     // }
 });
 
-
 const db: Array<Task> = [];
 
-
+const userDB: Array<User> = [];
 
 let temp: string;
 interface Task {
@@ -24,6 +27,10 @@ interface Task {
     file: string;
     status: string;
     date: string;
+}
+interface User {
+    email: string;
+    password: string;
 }
 
 type IdRequest = FastifyRequest<{
@@ -39,6 +46,21 @@ type TaskRequest = FastifyRequest<{
         date: string;
     };
 }>;
+
+server.register(cookie, {
+    secret: "my-secret", // for cookies signature
+    parseOptions: {}     // options for parsing cookies
+} as FastifyCookieOptions)
+
+
+server.addHook('onRequest', (req, reply, done) => {
+    if (req.url != '/login' && req.url != '/signup') {
+        if (!verifyToken(req.cookies.token)) {
+            reply.code(401).send('Incorrect token');
+        }
+    }
+    done();
+})
 
 server.register(multer.contentParser);
 
@@ -109,8 +131,63 @@ server.route({
 
 
 
+server.post('/signup', async (req, res) => {
+    const { email, password } = (<any>req).body;
+
+    if (userDB.findIndex(el => el.email == email) >= 0) {
+        res.send('Already exist');
+    } else {
+        try {
+            const passwordDB = await bcrypt.hash(password, 10);
+            userDB.push({ email, password: passwordDB });
+            res.send('Created');
+        } catch (e) {
+            return res.send(e);
+        }
+    }
+})
 
 
+const verifyUserLogin = async (email: string, password: string) => {
+    try {
+        const id = userDB.findIndex(el => el.email == email);
+        if (id == -1) {
+            return { status: 'error', error: 'user not found' }
+        }
+        if (await bcrypt.compare(password, userDB[id].password)) {
+            // creating a JWT token
+            token = jwt.sign({ username: userDB[id].email, type: 'user' }, JWT_SECRET, { expiresIn: '2h' })
+            return { status: 'ok', data: token }
+        }
+        return { status: 'error', error: 'invalid password' }
+    } catch (error) {
+        console.log(error);
+        return { status: 'error', error: 'timed out' }
+    }
+}
+
+const verifyToken = (token: string) => {
+    try {
+        const verify = jwt.verify(token, JWT_SECRET);
+        if ((<any>verify).type === 'user') { return true; }
+        else { return false };
+    } catch (error) {
+        console.log(JSON.stringify(error), "error");
+        return false;
+    }
+}
+
+server.post('/login', async (req, res) => {
+    const { email, password } = (<any>req).body;
+    const response = await verifyUserLogin(email, password);
+    if (response.status === 'ok') {
+
+        res.setCookie('token', token, { maxAge: 2 * 60 * 60 * 1000, httpOnly: true });
+        res.send('OK');
+    } else {
+        res.code(401).send(response);
+    }
+})
 
 server.get('/task', (req: IdRequest, reply) => {
     const stream = createReadStream(join(__dirname, '../uploads', req.query.id));
