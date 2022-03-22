@@ -20,6 +20,7 @@ import { v4 } from 'uuid';
 
 export default function App() {
 
+  axios.defaults.withCredentials = true;
   const req = axios.create({
     baseURL: 'http://localhost:8080',
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -57,8 +58,8 @@ export default function App() {
       req.post(`/task/put?id=${taskID.target.value}`, formData).then(res => {
         if (res.status === 200) {
           const editableRecord = rows.findIndex(el => {
-            return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value || 
-            el.file == taskID.target.value;
+            return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
+              el.file == taskID.target.value;
           });
           let temp1 = [...rows];
           let old = temp1[editableRecord];
@@ -79,8 +80,8 @@ export default function App() {
       req.post(`/task/delete?id=${taskID.target.value}`).then(res => {
         if (res.status == 200) {
           const editableRecord = rows.findIndex(el => {
-            return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value || 
-            el.file == taskID.target.value;
+            return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
+              el.file == taskID.target.value;
           });
           let temp1 = [...rows];
           temp1.splice(editableRecord, 1);
@@ -91,7 +92,7 @@ export default function App() {
     }
   }
   async function downloadFile(name) {
-    const result = await req.get(`/task?id=${name}`, {responseType: 'blob'});
+    const result = await req.get(`/task?id=${name}`, { responseType: 'blob' });
     const url = window.URL.createObjectURL(new Blob([result.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -100,12 +101,41 @@ export default function App() {
     link.click();
   }
 
+  async function tryAuth(email, password) {
+    //e.preventDefault();
+    const result = await req('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: {
+        email: email.target.value, password: password.target.value
+      }
+    });
+    console.log(result);
+  }
+
+  async function Signup(login, password) {
+    console.log(login.target.value, password.target.value);
+    const result = await req('/signup', {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json' },
+      data: {
+        email: login.target.value,
+        password: password.target.value
+      }
+    });
+    console.log(result);
+  }
+
   const [operation, setMethod] = React.useState(0);
   const [taskName, setName] = React.useState('');
   const [taskStatus, setStatus] = React.useState('');
   const [taskDate, setDate] = React.useState(null);
   const [taskID, setID] = React.useState('');
   const taskFile = React.createRef();
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogging, setLogging] = useState(false);
+
   const Input = styled('input')({
     display: 'none',
   });
@@ -148,7 +178,7 @@ export default function App() {
       headerName: 'ID',
       type: 'number',
       renderCell: (params) => {
-        if(params.row.file.toString().includes('.')){
+        if (params.row.file.toString().includes('.')) {
           return (
             params.row.file.toString().slice(0, params.row.file.toString().lastIndexOf('.'))
           );
@@ -164,7 +194,7 @@ export default function App() {
       renderCell: (params) => {
         return (
           <div name={params.row.file}>
-            <IconButton name={params.row.file} disabled={params.row.file ? false : true} onClick={() => {downloadFile(params.row.file)}}>
+            <IconButton name={params.row.file} disabled={params.row.file ? false : true} onClick={() => { downloadFile(params.row.file) }}>
               <DownloadIcon />
             </IconButton>
           </div>
@@ -176,81 +206,108 @@ export default function App() {
 
   return (
     <div className="App">
-      {(operation === 'post' || operation === 'put') ? < TextField
-        sx={{ m: 3 }}
-        required={!!(operation === 'post')}
-        id="standard-required"
-        label="Name"
-        name='name'
-        variant="standard"
-        onChange={setName}
-      /> : null}
-      {(operation === 'post' || operation === 'put') ? < TextField
-        sx={{ m: 3 }}
-        required={!!(operation === 'post')}
-        id="standard-required"
-        label="Status"
-        name='status'
-        variant="standard"
-        onChange={setStatus}
-      /> : null}
-      {(operation === 'post' || operation === 'put') ? <LocalizationProvider dateAdapter={AdapterDateFns} >
-        <DatePicker
-          label="Date"
-          name='date'
-          value={taskDate}
+      {true ? <div>
+        {(operation === 'post' || operation === 'put') ? < TextField
+          sx={{ m: 3 }}
           required={!!(operation === 'post')}
+          id="standard-required"
+          label="Name"
+          name='name'
+          variant="standard"
+          onChange={setName}
+        /> : null}
+        {(operation === 'post' || operation === 'put') ? < TextField
+          sx={{ m: 3 }}
+          required={!!(operation === 'post')}
+          id="standard-required"
+          label="Status"
+          name='status'
+          variant="standard"
+          onChange={setStatus}
+        /> : null}
+        {(operation === 'post' || operation === 'put') ? <LocalizationProvider dateAdapter={AdapterDateFns} >
+          <DatePicker
+            label="Date"
+            name='date'
+            value={taskDate}
+            required={!!(operation === 'post')}
+            onChange={(newValue) => {
+              setDate(newValue);
+            }}
+            renderInput={(params) => <TextField {...params} sx={{ m: 3 }} />}
+          />
+        </LocalizationProvider> : null}
+
+        {(operation === 'delete' || operation === 'put') ? <TextField
+          sx={{ m: 3 }}
+          required
+          id="standard-required"
+          label="ID"
+          name='id'
+          variant="standard"
+          onChange={setID}
+        /> : null}
+
+        {(operation === 'post' || operation === 'put') ? <label htmlFor="icon-button-file">
+          <label htmlFor="contained-button-file">
+            <Input id="contained-button-file" type="file" name="file" ref={taskFile} />
+            <Button variant="contained" component="span" sx={{ mt: 4 }}>
+              <FileUploadIcon />
+            </Button>
+          </label>
+        </label> : null}
+        <FormControl sx={{ m: 3 }}>
+          <Select
+            value={operation}
+            onChange={e => setMethod(e.target.value)}
+            displayEmpty
+            inputProps={{ 'aria-label': 'Operation' }}
+          >
+            <MenuItem value={'post'}>Post</MenuItem>
+            <MenuItem value={'put'}>Put</MenuItem>
+            <MenuItem value={'delete'}>Delete</MenuItem>
+          </Select>
+          <FormHelperText>Operation</FormHelperText>
+        </FormControl>
+        <Button variant="contained" endIcon={<SendIcon />} sx={{ mt: 4 }} onClick={sendAction}>
+          Send
+        </Button>
+
+        <div style={{ height: 400, width: '100%' }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            pageSize={10}
+          />
+        </div>
+      </div> : null}
+      <div>
+        <TextField
+          id="outlined-password-input"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
           onChange={(newValue) => {
-            setDate(newValue);
+            setPassword(newValue);
           }}
-          renderInput={(params) => <TextField {...params} sx={{ m: 3 }} />}
         />
-      </LocalizationProvider> : null}
-
-      {(operation === 'delete' || operation === 'put') ? <TextField
-        sx={{ m: 3 }}
-        required
-        id="standard-required"
-        label="ID"
-        name='id'
-        variant="standard"
-        onChange={setID}
-      /> : null}
-
-      {(operation === 'post' || operation === 'put') ? <label htmlFor="icon-button-file">
-        <label htmlFor="contained-button-file">
-          <Input id="contained-button-file" type="file" name="file" ref={taskFile} />
-          <Button variant="contained" component="span" sx={{ mt: 4 }}>
-            <FileUploadIcon />
-
-          </Button>
-        </label>
-      </label> : null}
-      <FormControl sx={{ m: 3 }}>
-        <Select
-          value={operation}
-          onChange={e => setMethod(e.target.value)}
-          displayEmpty
-          inputProps={{ 'aria-label': 'Operation' }}
-        >
-          <MenuItem value={'post'}>Post</MenuItem>
-          <MenuItem value={'put'}>Put</MenuItem>
-          <MenuItem value={'delete'}>Delete</MenuItem>
-        </Select>
-        <FormHelperText>Operation</FormHelperText>
-      </FormControl>
-      <Button variant="contained" endIcon={<SendIcon />} sx={{ mt: 4 }} onClick={sendAction}>
-        Send
-      </Button>
-
-      <div style={{ height: 400, width: '100%' }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          pageSize={10}
+        <TextField
+          type="email"
+          label="Email"
+          autoComplete="current-password"
+          onChange={(newValue) => {
+            setLogin(newValue);
+          }}
         />
+        <Button variant="contained" endIcon={<SendIcon />} sx={{ m: 2 }} onClick={() => { Signup(login, password) }}>
+          Signup
+        </Button>
+        <Button variant="contained" endIcon={<SendIcon />} sx={{ m: 2 }} onClick={() => { tryAuth(login, password) }}>
+          Signin
+        </Button>
       </div>
     </div>
+
 
 
   )

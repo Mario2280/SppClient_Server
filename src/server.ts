@@ -47,29 +47,37 @@ type TaskRequest = FastifyRequest<{
     };
 }>;
 
+server.register(require('fastify-cors'), {  
+    origin: '*',
+    methods: ['POST', 'PUT', 'DELETE'],
+  })
+
 server.register(cookie, {
     secret: "my-secret", // for cookies signature
     parseOptions: {}     // options for parsing cookies
 } as FastifyCookieOptions)
 
+server.addHook('onSend', (request, reply, payload, next) => {
+    reply.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    reply.header('Access-Control-Allow-Credentials', 'true');
+    reply.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+    reply.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Origin, Cache-Control");
+    next()
+});
 
 server.addHook('onRequest', (req, reply, done) => {
     if (req.url != '/login' && req.url != '/signup') {
         if (!verifyToken(req.cookies.token)) {
             reply.code(401).send('Incorrect token');
         }
+        console.log(db, userDB);
     }
     done();
-})
+});
 
 server.register(multer.contentParser);
 
-server.addHook('onSend', (request, reply, payload, next) => {
-    reply.header("Access-Control-Allow-Origin", "*");
-    reply.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
-    reply.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Origin, Cache-Control");
-    next()
-})
+
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
