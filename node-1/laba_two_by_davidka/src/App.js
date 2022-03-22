@@ -55,7 +55,7 @@ export default function App() {
       formData.append('status', taskStatus?.target?.value ?? null);
       formData.append('date', taskDate ?? null);
       formData.append('file', taskFile?.current?.files[0] ?? null);
-      req.post(`/task/put?id=${taskID.target.value}`, formData).then(res => {
+      req.put(`/task?id=${taskID.target.value}`, formData).then(res => {
         if (res.status === 200) {
           const editableRecord = rows.findIndex(el => {
             return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
@@ -75,9 +75,8 @@ export default function App() {
         }
       });
     }
-
     if (operation === 'delete') {
-      req.post(`/task/delete?id=${taskID.target.value}`).then(res => {
+      req.delete(`/task?id=${taskID.target.value}`).then(res => {
         if (res.status == 200) {
           const editableRecord = rows.findIndex(el => {
             return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
@@ -90,6 +89,20 @@ export default function App() {
       });
       formData.append('id', taskID ? taskID.target.value : null);
     }
+    // if (operation === 'delete') {
+    //   req.post(`/task/delete?id=${taskID.target.value}`).then(res => {
+    //     if (res.status == 200) {
+    //       const editableRecord = rows.findIndex(el => {
+    //         return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
+    //           el.file == taskID.target.value;
+    //       });
+    //       let temp1 = [...rows];
+    //       temp1.splice(editableRecord, 1);
+    //       setRows([...temp1]);
+    //     }
+    //   });
+    //   formData.append('id', taskID ? taskID.target.value : null);
+    // }
   }
   async function downloadFile(name) {
     const result = await req.get(`/task?id=${name}`, { responseType: 'blob' });

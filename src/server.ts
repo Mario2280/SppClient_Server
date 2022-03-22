@@ -131,8 +131,8 @@ server.route({
 });
 
 server.route({
-    method: "POST",
-    url: "/task/put",
+    method: "PUT",
+    url: "/task",
     preHandler: multer({ storage }).single('file'),
     handler: filePut
 });
@@ -203,7 +203,24 @@ server.get('/task', (req: IdRequest, reply) => {
     reply.send(stream);
 });
 
-server.post('/task/delete', (request: IdRequest, reply) => {
+// server.post('/task/delete', (request: IdRequest, reply) => {
+//     const files = readdirSync('./uploads');
+//     let flag = false;
+//     for (const file of files) {
+//         if (file.toString().includes(db[+request.query.id].file.toString())) {
+//             unlink(`./uploads/${db[+request.query.id].file}`).then(() => {
+//                 db.splice(request.id, 1);
+//                 reply.code(200).send();
+//                 flag = true;
+//             })
+//         }
+//     }
+//     if (!flag) {
+//         db.splice(request.id, 1);
+//         reply.code(200).send();
+//     }
+// })
+server.delete('/task', (request: IdRequest, reply) => {
     const files = readdirSync('./uploads');
     let flag = false;
     for (const file of files) {
