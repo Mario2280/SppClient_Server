@@ -11,8 +11,14 @@ const io = new Server(httpServer, {
     cookie: {
         name: 'token',
         httpOnly: true,
-        sameSite: "strict",
+        //sameSite: "strict",
         maxAge: 3600
+    },
+    cors:{
+        origin:'*',
+        methods: ['GET,HEAD,PUT,PATCH,POST,DELETE'],
+        credentials: true,
+        allowedHeaders: ["Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Origin, Cache-Control"]
     }
 });
 const ss = require('socket.io-stream');
@@ -20,7 +26,7 @@ const { createReadStream, createWriteStream, readdirSync } = require('fs');
 const { unlink } = require('fs/promises');
 const bcrypt = require('bcrypt');
 
-const db = [{ a: 'asd', b: 'qwe', c: 'dfg', file: '0.txt' }];
+const db = [];
 const userDB = [];
 let isPutFile = false;
 
@@ -61,16 +67,16 @@ const verifyToken = (token) => {
 io.on('connection', (socket) => {
 
     //socket.io middleware check cookie in socket.handshake.headers.cookie
-    socket.use((packet, next) => {
-        if (packet[0] == 'login' || packet[0] == 'signup') {
-            return next();
-        }
-        if (!verifyToken(socket.handshake.headers.cookie)) {
-            return next(new Error('Incorrect token'));
-        }
+    // socket.use((packet, next) => {
+    //     if (packet[0] == 'login' || packet[0] == 'signup') {
+    //         return next();
+    //     }
+    //     if (!verifyToken(socket.handshake.headers.cookie)) {
+    //         return next(new Error('Incorrect token'));
+    //     }
 
 
-    });
+    // });
     socket.on('getTasks', () => {
         socket.emit('Tasks', { tasks: db });
     });

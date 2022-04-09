@@ -1,3 +1,7 @@
+//import {Buffer} from 'buffer';
+import { pipe } from 'stream';
+//import ss from 'socket.io-stream';
+import ss from '@sap_oss/node-socketio-stream';
 import TextField from '@mui/material/TextField';
 import DatePicker from '@mui/lab/DatePicker';
 import React, { useState, useEffect } from 'react';
@@ -16,9 +20,61 @@ import SendIcon from '@mui/icons-material/Send';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import axios from 'axios';
 import { v4 } from 'uuid';
+import { forwardRef } from 'react'
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
+import { connect } from 'socket.io-client';
+//import { createReadStream } from 'fs';
+
+
+
+
+
+const Alert = forwardRef(function Alert(props, ref) {
+  if (props.children.includes('failed')) return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
+  return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} > Success</MuiAlert>;
+
+});
+
+const InstantMessage = ({ message }) => {
+
+  const [open, setOpen] = useState(true);
+  //Leave this true since we are not using a button
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setOpen(false);
+  };
+
+  return (
+    <Snackbar open={open} autoHideDuration={6000} onClose={handleClose}>
+      <Alert onClose={handleClose} severity={!message.includes('success') ? 'error' : 'success'}>{message}</Alert>
+    </Snackbar>
+  )
+}
 
 
 export default function App() {
+  const socket = connect('http://localhost:8080');
+
+  socket.on('connect', () => {
+
+
+    //console.log(fileStream);
+    // const stream = ss.createStream()
+    // ss(socket).emit('stream', stream)
+    // pipeline(createReadStream('README.md'), stream, (err) => err && console.log(err))
+    // socket.emit('signup', { email: login.target.value, password: password.target.value });
+    // ss(socket).on('stream', (stream) => {
+    //   pipeline(stream, process.stdout, (err) => err && console.log(err))
+    //   console.log(stream);
+    // });
+
+  });
+
 
   axios.defaults.withCredentials = true;
   const req = axios.create({
@@ -26,71 +82,90 @@ export default function App() {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
   function sendAction(e) {
+    const file = taskFile?.current?.files[0];
+    const fileStream = file.stream();
+    const stream = ss.createStream();
+    
+    // console.log({
+    //   name: taskName?.target?.value ?? null,
+    //   status: taskStatus?.target?.value ?? null,
+    //   date: taskDate ?? null,
+    //   extname: `.${file.name.split('.')[1]}`, withFile: taskFile?.current?.files[0] ? true : false
+    // });
+    socket.emit('createTask', {
+      name: taskName?.target?.value ?? null,
+      status: taskStatus?.target?.value ?? null,
+      date: taskDate ?? null,
+      extname: `.${file.name.split('.')[1]}`,
+      withFile: taskFile?.current?.files[0] ? true : false
+    });
 
-    let formData = new FormData();
+    ss(socket).emit('uploadFile', stream, {size: file.size});
+    ss.createBlobReadStream(file).pipe(stream);
+    //pipeline(fileStream, stream, (err) => err && console.log(err));
 
-    e.preventDefault();
+    // let formData = new FormData();
 
-    if (operation === 'post') {
-      formData.append('name', taskName?.target?.value ?? null);
-      formData.append('status', taskStatus?.target?.value ?? null);
-      formData.append('date', taskDate ?? null);
-      formData.append('file', taskFile?.current?.files[0] ?? null);
-      req.post('/task', formData).then(res => {
-        if (res.status === 200) {
-          setRows([...rows, {
-            id: v4(),
-            file: res.data.file,
-            name: taskName?.target?.value,
-            status: taskStatus?.target?.value,
-            date: taskDate,
-          }]);
+    // e.preventDefault();
 
-        }
-      });
-    }
+    // if (operation === 'post') {
 
-    if (operation === 'put') {
-      formData.append('name', taskName?.target?.value ?? null);
-      formData.append('status', taskStatus?.target?.value ?? null);
-      formData.append('date', taskDate ?? null);
-      formData.append('file', taskFile?.current?.files[0] ?? null);
-      req.put(`/task?id=${taskID.target.value}`, formData).then(res => {
-        if (res.status === 200) {
-          const editableRecord = rows.findIndex(el => {
-            return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
-              el.file == taskID.target.value;
-          });
-          let temp1 = [...rows];
-          let old = temp1[editableRecord];
-          console.log(res.data.file ?? old.file);
-          temp1[editableRecord] = {
-            id: v4(),
-            file: res.data.file ?? old.file,
-            name: taskName?.target?.value ?? old.name,
-            status: taskStatus?.target?.value ?? old.status,
-            date: taskDate ?? old.date,
-          };
-          setRows([...temp1]);
-        }
-      });
-    }
-    if (operation === 'delete') {
-      req.delete(`/task?id=${taskID.target.value}`).then(res => {
-        if (res.status == 200) {
-          const editableRecord = rows.findIndex(el => {
-            return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
-              el.file == taskID.target.value;
-          });
-          let temp1 = [...rows];
-          temp1.splice(editableRecord, 1);
-          setRows([...temp1]);
-        }
-      });
-      formData.append('id', taskID ? taskID.target.value : null);
-    }
+    //   formData.append('name', taskName?.target?.value ?? null);
+    //   formData.append('status', taskStatus?.target?.value ?? null);
+    //   formData.append('date', taskDate ?? null);
+    //   formData.append('file', taskFile?.current?.files[0] ?? null);
+    //   req.post('/task', formData).then(res => {
+    //     if (res.status === 200) {
+    //       setRows([...rows, {
+    //         id: v4(),
+    //         file: res.data.file,
+    //         name: taskName?.target?.value,
+    //         status: taskStatus?.target?.value,
+    //         date: taskDate,
+    //       }]);
+    //       setMessage('success');
+    //       setError(true);
+    //     }
+    //   }).catch(err => {
+    //     setMessage(err.message);
+    //     setError(true);
+    //   });
+    //   setError(false);
+    // }
+    // setError(false);
+    // if (operation === 'put') {
+    //   formData.append('name', taskName?.target?.value ?? null);
+    //   formData.append('status', taskStatus?.target?.value ?? null);
+    //   formData.append('date', taskDate ?? null);
+    //   formData.append('file', taskFile?.current?.files[0] ?? null);
+    //   req.put(`/task?id=${taskID.target.value}`, formData).then(res => {
+    //     if (res.status === 200) {
+    //       const editableRecord = rows.findIndex(el => {
+    //         return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
+    //           el.file == taskID.target.value;
+    //       });
+    //       let temp1 = [...rows];
+    //       let old = temp1[editableRecord];
+    //       console.log(res.data.file ?? old.file);
+    //       temp1[editableRecord] = {
+    //         id: v4(),
+    //         file: res.data.file ?? old.file,
+    //         name: taskName?.target?.value ?? old.name,
+    //         status: taskStatus?.target?.value ?? old.status,
+    //         date: taskDate ?? old.date,
+    //       };
+    //       setRows([...temp1]);
+    //       setMessage('success');
+    //       setError(true);
+    //     }
+    //   }).catch(err => {
+    //     setMessage(err.message);
+    //     setError(true);
+    //   });
+    //   setError(false);
+    // }
     // if (operation === 'delete') {
-    //   req.post(`/task/delete?id=${taskID.target.value}`).then(res => {
+    //   req.delete(`/task?id=${taskID.target.value}`).then(res => {
     //     if (res.status == 200) {
     //       const editableRecord = rows.findIndex(el => {
     //         return el.file.toString().slice(0, el.file.toString().lastIndexOf('.')) == taskID.target.value ||
@@ -99,19 +174,26 @@ export default function App() {
     //       let temp1 = [...rows];
     //       temp1.splice(editableRecord, 1);
     //       setRows([...temp1]);
+    //       setMessage('success');
+    //       setError(true);
     //     }
+    //   }).catch(err => {
+    //     setMessage(err.message);
+    //     setError(true);
     //   });
+    //   setError(false);
     //   formData.append('id', taskID ? taskID.target.value : null);
     // }
   }
   async function downloadFile(name) {
-    const result = await req.get(`/task?id=${name}`, { responseType: 'blob' });
-    const url = window.URL.createObjectURL(new Blob([result.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${name}`); //or any other extension
-    document.body.appendChild(link);
-    link.click();
+    console.log(name);
+    // const result = await req.get(`/task?id=${name}`, { responseType: 'blob' });
+    // const url = window.URL.createObjectURL(new Blob([result.data]));
+    // const link = document.createElement('a');
+    // link.href = url;
+    // link.setAttribute('download', `${name}`); //or any other extension
+    // document.body.appendChild(link);
+    // link.click();
   }
 
   async function tryAuth(email, password) {
@@ -138,7 +220,8 @@ export default function App() {
     });
     console.log(result);
   }
-
+  const [error, setError] = useState(false); //Controls Alert
+  const [messageErr, setMessage] = useState('') //Controls Message
   const [operation, setMethod] = React.useState(0);
   const [taskName, setName] = React.useState('');
   const [taskStatus, setStatus] = React.useState('');
@@ -318,10 +401,9 @@ export default function App() {
         <Button variant="contained" endIcon={<SendIcon />} sx={{ m: 2 }} onClick={() => { tryAuth(login, password) }}>
           Signin
         </Button>
+
+        {error ? <InstantMessage message={messageErr} /> : ``}
       </div>
     </div>
-
-
-
   )
 }

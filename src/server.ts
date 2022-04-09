@@ -8,6 +8,12 @@ import bcrypt from 'bcrypt';
 import cookie from 'fastify-cookie';
 import { FastifyCookieOptions } from 'fastify-cookie'
 
+import fastifyIO from "fastify-socket.io";
+
+
+
+
+
 const JWT_SECRET = 'secret';
 let token: string;
 
@@ -47,10 +53,10 @@ type TaskRequest = FastifyRequest<{
     };
 }>;
 
-server.register(require('fastify-cors'), {  
+server.register(require('fastify-cors'), {
     origin: '*',
     methods: ['POST', 'PUT', 'DELETE'],
-  })
+})
 
 server.register(cookie, {
     secret: "my-secret", // for cookies signature
@@ -58,22 +64,30 @@ server.register(cookie, {
 } as FastifyCookieOptions)
 
 server.addHook('onSend', (request, reply, payload, next) => {
-    reply.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    reply.header("Access-Control-Allow-Origin", "http://localhost:3001");
     reply.header('Access-Control-Allow-Credentials', 'true');
     reply.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
     reply.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Origin, Cache-Control");
     next()
 });
 
-server.addHook('onRequest', (req, reply, done) => {
-    if (req.url != '/login' && req.url != '/signup') {
-        if (!verifyToken(req.cookies.token)) {
-            reply.code(401).send('Incorrect token');
-        }
-        console.log(db, userDB);
-    }
-    done();
-});
+
+server.register(fastifyIO);
+
+//fastify socket middleware to check token with verifyToken function
+// server.io.use((socket, next) => {
+
+// });
+
+// server.addHook('onRequest', (req, reply, done) => {
+//     if (req.url != '/login' && req.url != '/signup') {
+//         if (!verifyToken(req.cookies.token)) {
+//             reply.code(401).send('Incorrect token');
+//         }
+//         console.log(db, userDB);
+//     }
+//     done();
+// });
 
 server.register(multer.contentParser);
 
@@ -197,6 +211,8 @@ server.post('/login', async (req, res) => {
     }
 })
 
+
+
 server.get('/task', (req: IdRequest, reply) => {
     const stream = createReadStream(join(__dirname, '../uploads', req.query.id));
     reply.header('Content-Type', 'application/octet-stream');
@@ -220,31 +236,71 @@ server.get('/task', (req: IdRequest, reply) => {
 //         reply.code(200).send();
 //     }
 // })
-server.delete('/task', (request: IdRequest, reply) => {
-    const files = readdirSync('./uploads');
-    let flag = false;
-    for (const file of files) {
-        if (file.toString().includes(db[+request.query.id].file.toString())) {
-            unlink(`./uploads/${db[+request.query.id].file}`).then(() => {
-                db.splice(request.id, 1);
-                reply.code(200).send();
-                flag = true;
-            })
-        }
-    }
-    if (!flag) {
-        db.splice(request.id, 1);
-        reply.code(200).send();
-    }
-})
+// server.delete('/task', (request: IdRequest, reply) => {
+//     const files = readdirSync('./uploads');
+//     let flag = false;
+//     for (const file of files) {
+//         if (file.toString().includes(db[+request.query.id].file.toString())) {
+//             unlink(`./uploads/${db[+request.query.id].file}`).then(() => {
+//                 db.splice(request.id, 1);
+//                 reply.code(200).send();
+//                 flag = true;
+//             })
+//         }
+//     }
+//     if (!flag) {
+//         db.splice(request.id, 1);
+//         reply.code(200).send();
+//     }
+// })
 
-server.get('/task/all', async (request, reply) => {
-    try {
-        reply.send({ task: db });
-    } catch (error) {
-        reply.send(error);
-    }
-})
+// server.get('/task/all', async (request, reply) => {
+//     try {
+//         reply.send({ task: db });
+//     } catch (error) {
+//         reply.send(error);
+//     }
+// })
+
+let socketArr: Array<any> = [];
+db.push({
+    name: 'string',
+    file: 'string',
+    status: 'string',
+    date: 'string',
+}) ;
+server.ready().then(() => {
+    server.io.on('connection', (socket) => {
+
+        socketArr.push(socket);
+
+        socket.on('deleteTask', data => {
+            const files = readdirSync('./uploads');
+            let flag = false;
+            for (const file of files) {
+                if (file.toString().includes(db[+data.id].file.toString())) {
+                    unlink(`./uploads/${db[+data.id].file}`).then(() => {
+                        db.splice(data.id, 1);
+                        socket.emit('success');
+                        flag = true;
+                    })
+                }
+            }
+            if (!flag) {
+                db.splice(data.id, 1);
+                socket.emit('success');
+            }
+        });
+        socket.on('getTasks', () => {
+            console.log(socket.handshake.headers.cookie);
+            
+            socket.emit('taskTable', { task: db });
+        });
+
+    });
+
+
+});
 
 server.listen(8080, (err, address) => {
     if (err) {
@@ -253,3 +309,18 @@ server.listen(8080, (err, address) => {
     }
     console.log(`Server listening at ${address}`)
 })
+
+import { pipeline } from 'stream';
+import { Server } from 'http';
+import socketIO from 'socket.io';
+const server = new Server().listen(8080)
+const io = socketIO()
+import ss from 'socket.io-stream';
+import { createReadStream } from 'fs';
+io.on('connection', (socket) => {
+
+    socket.
+    const stream = ss.createStream()
+    ss(socket).emit('stream', stream)
+    pipeline(createReadStream('README.md'), stream, (err) => err && console.log(err))
+});
