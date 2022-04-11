@@ -1,12 +1,9 @@
 const { pipeline } = require('stream');
-// const server = require('http').Server({
-//     cookie: true
-// }).listen(8080);
-// const io = require('socket.io')(server);
 const jwt = require('jsonwebtoken');
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const httpServer = createServer();
+const mime = require('mime-types');
 const io = new Server(httpServer, {
     cookie: {
         name: 'token',
@@ -14,21 +11,21 @@ const io = new Server(httpServer, {
         //sameSite: "strict",
         maxAge: 3600
     },
-    cors:{
-        origin:'*',
+    cors: {
+        origin: '*',
         methods: ['GET,HEAD,PUT,PATCH,POST,DELETE'],
         credentials: true,
         allowedHeaders: ["Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Origin, Cache-Control"]
     }
 });
 const ss = require('socket.io-stream');
-const { createReadStream, createWriteStream, readdirSync } = require('fs');
-const { unlink } = require('fs/promises');
+const { createReadStream, createWriteStream, readdirSync, writeFileSync } = require('fs');
+const { unlink, writeFile } = require('fs/promises');
 const bcrypt = require('bcrypt');
 
 const db = [];
 const userDB = [];
-let isPutFile = false;
+
 
 const JWT_SECRET = 'secret';
 let token;
@@ -83,47 +80,62 @@ io.on('connection', (socket) => {
 
     //id просто индекс файла в массиве
     socket.on('deleteTask', data => {
-        const files = readdirSync('./uploads');
-        let fileDeleted = false;
-        for (const file of files) {
-            if (file.toString().includes(db[+data.id].file.toString())) {
-                unlink(`./uploads/${db[+data.id].file}`).then(() => {
-                    db.splice(data.id, 1);
-                    socket.emit('success');
-                    fileDeleted = true;
-                });
-            }
-        }
+        // const files = readdirSync('./uploads');
+        // let fileDeleted = false;
+        // for (const file of files) {
+        //     if (file.toString().includes(db[+data.id].file.toString())) {
+        //         unlink(`./uploads/${db[+data.id].file}`).then(() => {
+        //             db.splice(data.id, 1);
+        //             socket.emit('success');
+        //             fileDeleted = true;
+        //         });
+        //     }
+        // }
         if (!fileDeleted) {
             db.splice(data.id, 1);
             socket.emit('success');
         }
     });
-    //id = '1.txt'
+
     socket.on('downloadFile', data => {
-        const sendStream = ss.createStream();
-        ss(socket).emit('stream', sendStream);
-        pipeline(createReadStream(`./uploads/${data.id}`), sendStream, (err) => err && console.log(err));
+        const fileName = data.id;
+        const read = createReadStream(`./uploads/${fileName}`);
+        read.on('data', (chunk) => {
+            socket.emit('stream', chunk);
+        });
+        read.on('end', () => {
+            socket.emit('end', mime.lookup(fileName));
+        });
     });
-    //extname '.txt'
     socket.on('createTask', data => {
         const { name, status, date, extname, withFile } = data;
-        isPutFile = false;
+
         db.push({ name, status, date, file: withFile ? `${db.length}${extname ? `${extname}` : ''}` : null });
     });
-    //isPutFile - признак наличия файла в запросе и индекс если есть
-    socket.on('uploadFile', (stream) => {
-        if (isPutFile === false) {
-            pipeline(stream,
-                createWriteStream(`./uploads/${db.length.toString() + db[db.length].extname}`),
-                (err) => err && console.log(err));
-        } else {
-            unlink(`./uploads/${isPutFile.toString()}`).then(() => {
-                pipeline(stream,
-                    createWriteStream(`./uploads/${isPutFile.toString()}`),
-                    (err) => err && console.log(err));
+    //isPut - признак наличия файла в запросе и индекс(1 <--) 
+    socket.on('uploadFile', (isPut) => {
+        let newFile = [];
+        let extname = '';
+        console.log(isPut);
+        if (isPut === false) {
+            socket.on('chunkOfUploadingFile', data => {
+                newFile.push(data);
+            }).on('end', ext => {
+                extname = mime.extension(ext);
+                writeFileSync(`./uploads/${db.length}.${extname}`, Buffer.concat(newFile));
+
             });
-            isPutFile = false;
+        } else {
+            unlink(`./uploads/${isPut?.toString()}`).then(() => {
+                socket.on('chunkOfUploadingFile', data => {
+                    newFile.push(data);
+                });
+                socket.on('end', ext => {
+                    extname = mime.extension(ext);
+                    writeFileSync(`./uploads/${isPut.toString()}.${extname}`, Buffer.concat(newFile));
+
+                });
+            });
         }
 
     });
@@ -131,7 +143,6 @@ io.on('connection', (socket) => {
     socket.on('putTask', data => {
         const { name, status, date, id } = data;
         const candidate = +(id.slice(0, id.lastIndexOf('.')));
-        isPutFile = id;
         name != null ? db[candidate].name = name : null;
         status != null ? db[candidate].status = status : null;
         date != null ? db[candidate].date = date : null;

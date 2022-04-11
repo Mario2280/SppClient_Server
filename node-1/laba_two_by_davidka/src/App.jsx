@@ -1,7 +1,5 @@
-//import {Buffer} from 'buffer';
-import { pipe } from 'stream';
-//import ss from 'socket.io-stream';
-import ss from '@sap_oss/node-socketio-stream';
+import ss from 'socket.io-client';
+import { pipeline } from 'stream-browserify'
 import TextField from '@mui/material/TextField';
 import DatePicker from '@mui/lab/DatePicker';
 import React, { useState, useEffect } from 'react';
@@ -24,7 +22,9 @@ import { forwardRef } from 'react'
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import { connect } from 'socket.io-client';
-//import { createReadStream } from 'fs';
+
+
+
 
 
 
@@ -63,15 +63,6 @@ export default function App() {
   socket.on('connect', () => {
 
 
-    //console.log(fileStream);
-    // const stream = ss.createStream()
-    // ss(socket).emit('stream', stream)
-    // pipeline(createReadStream('README.md'), stream, (err) => err && console.log(err))
-    // socket.emit('signup', { email: login.target.value, password: password.target.value });
-    // ss(socket).on('stream', (stream) => {
-    //   pipeline(stream, process.stdout, (err) => err && console.log(err))
-    //   console.log(stream);
-    // });
 
   });
 
@@ -82,27 +73,24 @@ export default function App() {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
   function sendAction(e) {
-    const file = taskFile?.current?.files[0];
-    const fileStream = file.stream();
-    const stream = ss.createStream();
-    
+    if(operation === 'post' || operation === 'put') uploadFile();
+
+
     // console.log({
     //   name: taskName?.target?.value ?? null,
     //   status: taskStatus?.target?.value ?? null,
     //   date: taskDate ?? null,
     //   extname: `.${file.name.split('.')[1]}`, withFile: taskFile?.current?.files[0] ? true : false
     // });
-    socket.emit('createTask', {
-      name: taskName?.target?.value ?? null,
-      status: taskStatus?.target?.value ?? null,
-      date: taskDate ?? null,
-      extname: `.${file.name.split('.')[1]}`,
-      withFile: taskFile?.current?.files[0] ? true : false
-    });
+    // socket.emit('createTask', {
+    //   name: taskName?.target?.value ?? null,
+    //   status: taskStatus?.target?.value ?? null,
+    //   date: taskDate ?? null,
+    //   extname: `.${file.name.split('.')[1]}`,
+    //   withFile: taskFile?.current?.files[0] ? true : false
+    // });
 
-    ss(socket).emit('uploadFile', stream, {size: file.size});
-    ss.createBlobReadStream(file).pipe(stream);
-    //pipeline(fileStream, stream, (err) => err && console.log(err));
+
 
     // let formData = new FormData();
 
@@ -186,7 +174,24 @@ export default function App() {
     // }
   }
   async function downloadFile(name) {
-    console.log(name);
+    //let name = '1.png'  
+    socket.emit('downloadFile', { id: name });
+    let fileData = [];
+    socket.on('stream', (chunk) => {
+      fileData.push(chunk);
+    });
+    socket.on('end', ext => {
+      const file = new File([...fileData], name, { type: ext.toString() });
+      const url = window.URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', name);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      socket.off('stream');
+      socket.off('end');
+    });
     // const result = await req.get(`/task?id=${name}`, { responseType: 'blob' });
     // const url = window.URL.createObjectURL(new Blob([result.data]));
     // const link = document.createElement('a');
@@ -196,6 +201,40 @@ export default function App() {
     // link.click();
   }
 
+  function uploadFile() {
+    if (operation === 'post') {
+      socket.emit('uploadFile', false);
+      let file = taskFile?.current?.files[0];
+      let fileStream = file.stream();
+      let readerText = fileStream.getReader();
+      readerText.read().then(function processText({ done, value }) {
+        if (done) {
+          socket.emit('end', file.type);
+          setMessage('File uploaded successfully');
+          setError(true);
+        } else {
+          socket.emit('chunkOfUploadingFile', value);
+          readerText.read().then(processText);
+        }
+      });
+    } else if (operation === 'put') {
+      socket.emit('uploadFile', taskID.target.value);
+      let file = taskFile?.current?.files[0];      
+      let fileStream = file.stream();
+      let readerText = fileStream.getReader();
+      readerText.read().then(function processText({ done, value }) {
+        if (done) {
+          socket.emit('end', file.type);
+          setMessage('File uploaded successfully');
+          setError(true);
+        } else {
+          socket.emit('chunkOfUploadingFile', value);
+          readerText.read().then(processText);
+        }
+      });
+    }
+
+  }
   async function tryAuth(email, password) {
     //e.preventDefault();
     const result = await req('/login', {
@@ -220,6 +259,8 @@ export default function App() {
     });
     console.log(result);
   }
+
+
   const [error, setError] = useState(false); //Controls Alert
   const [messageErr, setMessage] = useState('') //Controls Message
   const [operation, setMethod] = React.useState(0);
