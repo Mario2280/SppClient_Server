@@ -59,10 +59,17 @@ const InstantMessage = ({ message }) => {
 
 export default function App() {
   const socket = connect('http://localhost:8080');
-
+  const [token, setToken] = React.useState('');
   socket.on('connect', () => {
 
-
+    socket.on('403', () => {
+      setMessage("Unauthorized");
+      setError(true);
+    });
+    socket.on(200, data => {
+      setToken(data);
+      console.log(data);
+    });
 
   });
 
@@ -73,9 +80,42 @@ export default function App() {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
   function sendAction(e) {
-    if(operation === 'post' || operation === 'put') uploadFile();
+    let file1 = taskFile?.current?.files[0];
+    if (operation === 'post') {
+      socket.emit('createTask', {
+        name: taskName?.target?.value ?? null,
+        status: taskStatus?.target?.value ?? null,
+        date: taskDate ?? null,
+        extname: file1 ? `.${file1.name.split('.')[1]}` : null,
+        withFile: taskFile?.current?.files[0] ? true : false,
+        token
+      });
+    }
 
+    if (operation === 'put') {
+      socket.emit('putTask', {
+        name: taskName?.target?.value ?? null,
+        status: taskStatus?.target?.value ?? null,
+        date: taskDate ?? null,
+        id: taskID.target.value,
+        token
+      });
+    }
 
+    if (operation === 'post' || operation === 'put') uploadFile();
+
+    if (operation === 'delete') socket.emit('deleteTask', { id: taskID.target.value, token });
+    setTimeout(() => {
+      socket.emit('getTasks', {token});
+      socket.on('Tasks', (data) => {
+        data.task.map(el => {
+          el.ID = el.id;
+          el.id = v4();
+          return el;
+        });
+        setRows([...data.task]);
+      });
+    }, 1000);
     // console.log({
     //   name: taskName?.target?.value ?? null,
     //   status: taskStatus?.target?.value ?? null,
@@ -175,7 +215,7 @@ export default function App() {
   }
   async function downloadFile(name) {
     //let name = '1.png'  
-    socket.emit('downloadFile', { id: name });
+    socket.emit('downloadFile', { id: name, token });
     let fileData = [];
     socket.on('stream', (chunk) => {
       fileData.push(chunk);
@@ -202,62 +242,69 @@ export default function App() {
   }
 
   function uploadFile() {
-    if (operation === 'post') {
+    if (operation === 'post' && taskFile?.current?.files[0]) {
       socket.emit('uploadFile', false);
       let file = taskFile?.current?.files[0];
-      let fileStream = file.stream();
-      let readerText = fileStream.getReader();
-      readerText.read().then(function processText({ done, value }) {
-        if (done) {
-          socket.emit('end', file.type);
-          setMessage('File uploaded successfully');
-          setError(true);
-        } else {
-          socket.emit('chunkOfUploadingFile', value);
-          readerText.read().then(processText);
-        }
-      });
-    } else if (operation === 'put') {
-      socket.emit('uploadFile', taskID.target.value);
-      let file = taskFile?.current?.files[0];      
-      let fileStream = file.stream();
-      let readerText = fileStream.getReader();
-      readerText.read().then(function processText({ done, value }) {
-        if (done) {
-          socket.emit('end', file.type);
-          setMessage('File uploaded successfully');
-          setError(true);
-        } else {
-          socket.emit('chunkOfUploadingFile', value);
-          readerText.read().then(processText);
-        }
-      });
-    }
-
-  }
-  async function tryAuth(email, password) {
-    //e.preventDefault();
-    const result = await req('/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: {
-        email: email.target.value, password: password.target.value
+      let fileStream;
+      if (file) {
+        fileStream = file.stream();
+        let readerText = fileStream.getReader();
+        readerText.read().then(function processText({ done, value }) {
+          if (done) {
+            socket.emit('end', file.type);
+            setMessage('File uploaded successfully');
+            setError(true);
+          } else {
+            socket.emit('chunkOfUploadingFile', value);
+            readerText.read().then(processText);
+          }
+        });
       }
-    });
-    console.log(result);
+
+    } else if (operation === 'put' && taskFile?.current?.files[0]) {
+      socket.emit('uploadFile', taskID.target.value);
+      let file = taskFile?.current?.files[0];
+      if (file) {
+        let fileStream = file.stream();
+        let readerText = fileStream.getReader();
+        readerText.read().then(function processText({ done, value }) {
+          if (done) {
+            socket.emit('end', file.type);
+            setMessage('File uploaded successfully');
+            setError(true);
+          } else {
+            socket.emit('chunkOfUploadingFile', value);
+            readerText.read().then(processText);
+          }
+        });
+      }
+    }
+  }
+  async function tryAuth(login, password) {
+    //e.preventDefault();
+    
+   socket.emit('login', {
+        email: login.target.value,
+        password: password.target.value
+      });
+   console.log(socket);
   }
 
   async function Signup(login, password) {
-    console.log(login.target.value, password.target.value);
-    const result = await req('/signup', {
-      method: 'post',
-      headers: { 'Content-Type': 'application/json' },
-      data: {
-        email: login.target.value,
-        password: password.target.value
-      }
-    });
-    console.log(result);
+    socket.emit('signup', {
+          email: login.target.value,
+          password: password.target.value
+        });
+    // console.log(login.target.value, password.target.value);
+    // const result = await req('/signup', {
+    //   method: 'post',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   data: {
+    //     email: login.target.value,
+    //     password: password.target.value
+    //   }
+    // });
+    // console.log(result);
   }
 
 
@@ -284,12 +331,21 @@ export default function App() {
       setName('');
       setStatus('');
       setID('');
-      const res = await req.get('/task/all');
-      res.data.task.map(el => {
-        el.id = v4();
-        return el;
+      // const res = await req.get('/task/all');
+      // res.data.task.map(el => {
+      //   el.id = v4();
+      //   return el;
+      // });
+      // setRows([...res.data.task]);
+      socket.emit('getTasks');
+      socket.on('Tasks', (data) => {
+        data.task.map(el => {
+          el.ID = el.id;
+          el.id = v4();
+          return el;
+        });
+        setRows([...data.task]);
       });
-      setRows([...res.data.task]);
     })();
   }, []);
 
@@ -315,12 +371,12 @@ export default function App() {
       headerName: 'ID',
       type: 'number',
       renderCell: (params) => {
-        if (params.row.file.toString().includes('.')) {
+        if (params.row.file?.toString().includes('.')) {
           return (
             params.row.file.toString().slice(0, params.row.file.toString().lastIndexOf('.'))
           );
         }
-        return params.row.file;
+        return params.row.ID;
 
       }
     },
@@ -410,13 +466,7 @@ export default function App() {
           Send
         </Button>
 
-        <div style={{ height: 400, width: '100%' }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            pageSize={10}
-          />
-        </div>
+        <div style={{ height: 400, width: '100%' }}> <DataGrid rows={rows} columns={columns} pageSize={10} /> </div>
       </div> : null}
       <div>
         <TextField

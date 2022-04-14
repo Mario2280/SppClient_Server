@@ -62,35 +62,39 @@ const verifyToken = (token) => {
 
 
 io.on('connection', (socket) => {
-
+    //console.log('connected');
     //socket.io middleware check cookie in socket.handshake.headers.cookie
-    // socket.use((packet, next) => {
-    //     if (packet[0] == 'login' || packet[0] == 'signup') {
-    //         return next();
-    //     }
-    //     if (!verifyToken(socket.handshake.headers.cookie)) {
-    //         return next(new Error('Incorrect token'));
-    //     }
+    socket.use((packet, next) => {
+        console.log(packet);
+        if (packet[0] == 'login' || packet[0] == 'signup' || packet[0] == 'uploadFile' || packet[0] == 'end' || packet[0] == 'chunkOfUploadingFile' || packet[0] == 'downloadFile') {
+            return next();
+        }
+        if (packet[1]?.token && !verifyToken(packet[1].token)) {
+            socket.emit('403');
+            return next();
+        }
 
 
-    // });
+    });
     socket.on('getTasks', () => {
-        socket.emit('Tasks', { tasks: db });
+        console.log(db);
+        socket.emit('Tasks', { task: db });        
     });
 
     //id просто индекс файла в массиве
     socket.on('deleteTask', data => {
-        // const files = readdirSync('./uploads');
-        // let fileDeleted = false;
-        // for (const file of files) {
-        //     if (file.toString().includes(db[+data.id].file.toString())) {
-        //         unlink(`./uploads/${db[+data.id].file}`).then(() => {
-        //             db.splice(data.id, 1);
-        //             socket.emit('success');
-        //             fileDeleted = true;
-        //         });
-        //     }
-        // }
+        const files = readdirSync('./uploads');
+        let fileDeleted = false;
+        for (const file of files) {
+            if (file.toString().includes(db[+data.id]?.file?.toString())) {
+                unlink(`./uploads/${db[+data.id].file}`).then(() => {
+                    db.splice(data.id, 1);
+                    socket.emit('success');
+                    fileDeleted = true;
+                });
+            }
+            
+        }
         if (!fileDeleted) {
             db.splice(data.id, 1);
             socket.emit('success');
@@ -104,16 +108,17 @@ io.on('connection', (socket) => {
             socket.emit('stream', chunk);
         });
         read.on('end', () => {
-            socket.emit('end', mime.lookup(fileName));
+            socket.emit('end', mime.lookup(fileName)); 
         });
+        console.log(db);
     });
     socket.on('createTask', data => {
         const { name, status, date, extname, withFile } = data;
 
-        db.push({ name, status, date, file: withFile ? `${db.length}${extname ? `${extname}` : ''}` : null });
+        db.push({ name, status, date, file: withFile ? `${db.length}${extname ? `${extname}` : ''}` : null, id: db.length });
     });
     //isPut - признак наличия файла в запросе и индекс(1 <--) 
-    socket.on('uploadFile', (isPut) => {
+    socket.on('uploadFile',  (isPut) => { 
         let newFile = [];
         let extname = '';
         console.log(isPut);
@@ -122,27 +127,33 @@ io.on('connection', (socket) => {
                 newFile.push(data);
             }).on('end', ext => {
                 extname = mime.extension(ext);
-                writeFileSync(`./uploads/${db.length}.${extname}`, Buffer.concat(newFile));
+                writeFileSync(`./uploads/${db.length -1}.${extname}`, Buffer.concat(newFile));
 
             });
         } else {
-            unlink(`./uploads/${isPut?.toString()}`).then(() => {
-                socket.on('chunkOfUploadingFile', data => {
-                    newFile.push(data);
-                });
-                socket.on('end', ext => {
-                    extname = mime.extension(ext);
-                    writeFileSync(`./uploads/${isPut.toString()}.${extname}`, Buffer.concat(newFile));
+            const files = readdirSync('./uploads');
+            for (const file of files) {
+                if (file.toString().includes(isPut)){
+                    unlink(`./uploads/${file.toString()}`).then(() => { 
 
-                });
+                    });
+                }
+            }
+            socket.on('chunkOfUploadingFile', data => {
+                newFile.push(data);
             });
+            socket.on('end', ext => {
+                extname = mime.extension(ext);
+                writeFileSync(`./uploads/${isPut.toString()}.${extname}`, Buffer.concat(newFile));
+                db[+isPut].file = `${isPut}.${extname}`;
+            });
+            
         }
-
     });
     //id = '1.txt'
     socket.on('putTask', data => {
         const { name, status, date, id } = data;
-        const candidate = +(id.slice(0, id.lastIndexOf('.')));
+        const candidate = +id;
         name != null ? db[candidate].name = name : null;
         status != null ? db[candidate].status = status : null;
         date != null ? db[candidate].date = date : null;
@@ -168,8 +179,8 @@ io.on('connection', (socket) => {
         const { email, password } = data;
         const response = await verifyUserLogin(email, password);
         if (response.status === 'ok') {
-            socket.handshake.headers.cookie = `token=${response.data}`;
-            socket.emit('200');
+            let token = response.data;
+            socket.emit('200', token);
         } else {
             socket.emit('401');
         }
